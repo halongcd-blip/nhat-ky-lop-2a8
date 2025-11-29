@@ -3,21 +3,29 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, collection, query, setDoc } from 'firebase/firestore';
 
-// Lấy biến môi trường từ Vite. Đảm bảo các biến này đã được đặt trên Vercel/Netlify.
-// Vercel (hoặc môi trường Build) sẽ thay thế các biến này bằng giá trị thực.
-const appId = import.meta.env.VITE_APP_ID || 'default-app-id';
-const firebaseConfigJson = import.meta.env.VITE_FIREBASE_CONFIG;
-const initialAuthToken = import.meta.env.VITE_AUTH_TOKEN;
+// --- Khai báo các biến Toàn cục (MUST BE USED) ---
+// Canvas cung cấp các biến này trong runtime, không cần dùng import.meta.env
+// Chúng ta cần sử dụng các biến global này để đảm bảo Build thành công trên mọi nền tảng
+declare const __app_id: string;
+declare const __firebase_config: string;
+declare const __initial_auth_token: string;
 
 let firebaseApp: any;
 let db: any;
 let auth: any;
+let appId = 'default-app-id';
 
 try {
-    const firebaseConfig = JSON.parse(firebaseConfigJson);
-    firebaseApp = initializeApp(firebaseConfig);
-    db = getFirestore(firebaseApp);
-    auth = getAuth(firebaseApp);
+    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    if (Object.keys(firebaseConfig).length > 0) {
+        firebaseApp = initializeApp(firebaseConfig);
+        db = getFirestore(firebaseApp);
+        auth = getAuth(firebaseApp);
+    } else {
+        console.warn("Firebase config is missing or empty.");
+    }
 } catch (error) {
     console.error("Firebase initialization failed:", error);
 }
@@ -31,6 +39,8 @@ const setupAuthAndDatabase = async (setUserId: (id: string) => void, setIsAuthRe
 
     // Xác thực người dùng
     try {
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
         if (initialAuthToken) {
             await signInWithCustomToken(auth, initialAuthToken);
         } else {
@@ -66,7 +76,7 @@ const App: React.FC = () => {
             setupAuthAndDatabase(setUserId, setIsAuthReady);
         } else {
              // Xử lý khi khởi tạo Firebase thất bại (do thiếu config)
-            setErrorMessage("Lỗi: Firebase chưa được cấu hình. Vui lòng kiểm tra VITE_FIREBASE_CONFIG.");
+            setErrorMessage("Lỗi: Firebase chưa được cấu hình. Vui lòng kiểm tra VITE_FIREBASE_CONFIG hoặc các biến toàn cục.");
             setIsAuthReady(true);
             setIsLoading(false);
         }
@@ -121,7 +131,7 @@ const App: React.FC = () => {
     };
 
     const handleUpdateClick = () => {
-        const timestamp = new Date().toLocaleTimeString();
+        const timestamp = new Date().toLocaleTimeString('vi-VN');
         updateMessage(`Tin nhắn được cập nhật bởi ${userId} lúc ${timestamp}`);
     };
 
