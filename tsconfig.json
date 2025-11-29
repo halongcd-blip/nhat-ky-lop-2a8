@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2019",
     "useDefineForClassFields": true,
-    "lib": ["es2020", "dom", "dom.iterable"],
+    "lib": ["es2019", "dom"],
     "module": "ESNext",
     "skipLibCheck": true,
 
@@ -23,3 +23,14 @@
   "include": ["src", "vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
+
+
+### BƯỚC THỰC HIỆN
+
+1.  **Dán nội dung JSON thô** ở trên vào file `tsconfig.json`.
+2.  **Commit và Push:**
+
+```bash
+git add .
+git commit -m "Final attempt with downgraded target/lib to es2019 for max compatibility."
+git push origin main
