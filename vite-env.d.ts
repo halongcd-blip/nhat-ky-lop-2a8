@@ -2,18 +2,18 @@
 
 interface ImportMetaEnv {
   readonly VITE_APP_ID: string;
+  // Thêm các biến môi trường khác của Vite nếu cần
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-// Khai báo các biến toàn cục mà Canvas cung cấp
+// Khai báo các biến toàn cục (Global Variables) mà Canvas cung cấp.
+// Đảm bảo các biến này chỉ được khai báo ở đây để tránh xung đột.
 declare const __app_id: string;
 declare const __firebase_config: string;
 declare const __initial_auth_token: string | undefined;
 
-// Khai báo cho các biến bị lỗi trong file App.tsx của bạn
-declare const TEXTAREA: string;
-declare const FIREBASE_CONFIG: string;
-declare const AUTH_TOKEN: string;
+// Xóa bỏ các khai báo không cần thiết hoặc gây lỗi
+// Ví dụ: TEXTAREA, FIREBASE_CONFIG, AUTH_TOKEN, v.v.

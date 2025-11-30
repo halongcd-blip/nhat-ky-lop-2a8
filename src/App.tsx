@@ -3,11 +3,8 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, Firestore } from 'firebase/firestore';
 
-// Khai báo các biến Toàn cục để TypeScript nhận dạng.
-// LƯU Ý: Đã sửa lỗi cú pháp 'declare declare' thành 'declare'
-declare const __app_id: string;
-declare const __firebase_config: string; // <-- ĐÃ SỬA LỖI TYPO TẠI ĐÂY
-declare const __initial_auth_token: string;
+// KHÔNG CẦN KHAI BÁO 'declare const' Ở ĐÂY NỮA. 
+// Các biến toàn cục sẽ được nhận diện qua file 'vite-env.d.ts'
 
 // Component chính
 const App: React.FC = () => {
@@ -27,8 +24,9 @@ const App: React.FC = () => {
     // --- EFFECT 1: Khởi tạo Firebase ---
     useEffect(() => {
         try {
+            // Đọc các biến toàn cục một cách an toàn
+            // TypeScript sẽ nhận dạng __app_id và __firebase_config từ vite-env.d.ts
             const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            // __firebase_config là chuỗi JSON, cần parse
             const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
             
             setAppId(currentAppId);
@@ -57,6 +55,7 @@ const App: React.FC = () => {
 
         const setupAuth = async () => {
             try {
+                // Đọc biến toàn cục một cách an toàn
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 
                 if (initialAuthToken) {
@@ -104,6 +103,7 @@ const App: React.FC = () => {
                     setSharedData(docSnapshot.data() as { message: string });
                 } else {
                     // Nếu tài liệu không tồn tại, tạo tài liệu mặc định
+                    // Sử dụng setDoc với merge: true để tạo nếu chưa có
                     setDoc(docRef, { message: "Chào mừng đến với Nhật Ký Lớp 2A8!" }, { merge: true })
                         .then(() => setSharedData({ message: "Chào mừng đến với Nhật Ký Lớp 2A8!" }))
                         .catch(err => console.error("Error creating default doc:", err));
