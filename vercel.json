@@ -1,8 +1,0 @@
-{
-  "build": {
-    "env": {
-      "SKIP_PREFLIGHT_CHECK": "true",
-      "DISABLE_ESLINT": "1"
-    }
-  }
-}
