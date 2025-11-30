@@ -1,90 +1,94 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, collection, query, setDoc } from 'firebase/firestore';
+import React, { useState, useEffect, useCallback } from 'react';
+import { initializeApp, FirebaseApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
+import { getFirestore, doc, onSnapshot, setDoc, Firestore } from 'firebase/firestore';
 
-// --- Khai báo các biến Toàn cục (MUST BE USED) ---
-// Canvas cung cấp các biến này trong runtime, không cần dùng import.meta.env
-// Chúng ta cần sử dụng các biến global này để đảm bảo Build thành công trên mọi nền tảng
+// Khai báo các biến Toàn cục để TypeScript nhận dạng.
+// LƯU Ý: Đã sửa lỗi cú pháp 'declare declare' thành 'declare'
 declare const __app_id: string;
-declare const __firebase_config: string;
+declare const __firebase_config: string; // <-- ĐÃ SỬA LỖI TYPO TẠI ĐÂY
 declare const __initial_auth_token: string;
-
-let firebaseApp: any;
-let db: any;
-let auth: any;
-let appId = 'default-app-id';
-
-try {
-    const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-    if (Object.keys(firebaseConfig).length > 0) {
-        firebaseApp = initializeApp(firebaseConfig);
-        db = getFirestore(firebaseApp);
-        auth = getAuth(firebaseApp);
-    } else {
-        console.warn("Firebase config is missing or empty.");
-    }
-} catch (error) {
-    console.error("Firebase initialization failed:", error);
-}
-
-// Hàm khởi tạo và xác thực người dùng
-const setupAuthAndDatabase = async (setUserId: (id: string) => void, setIsAuthReady: (ready: boolean) => void) => {
-    if (!auth) {
-        setIsAuthReady(true);
-        return;
-    }
-
-    // Xác thực người dùng
-    try {
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        if (initialAuthToken) {
-            await signInWithCustomToken(auth, initialAuthToken);
-        } else {
-            await signInAnonymously(auth);
-        }
-    } catch (e) {
-        console.error("Firebase Auth failed:", e);
-    }
-
-    // Thiết lập listener cho trạng thái xác thực
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            setUserId(user.uid);
-        } else {
-            // Trường hợp không có token, sử dụng ID ngẫu nhiên cho người dùng ẩn danh
-            setUserId(auth.currentUser?.uid || crypto.randomUUID());
-        }
-        setIsAuthReady(true);
-    });
-};
 
 // Component chính
 const App: React.FC = () => {
+    // State để lưu trữ các instance Firebase đã khởi tạo
+    const [appInstance, setAppInstance] = useState<FirebaseApp | null>(null);
+    const [db, setDb] = useState<Firestore | null>(null);
+    const [auth, setAuth] = useState<Auth | null>(null);
+    const [appId, setAppId] = useState<string>('default-app-id');
+
+    // State cho thông tin người dùng và dữ liệu
     const [userId, setUserId] = useState<string | null>(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [sharedData, setSharedData] = useState<{ message: string }>({ message: 'Đang tải dữ liệu...' });
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
 
-    // 1. Khởi tạo Firebase và Xác thực
+    // --- EFFECT 1: Khởi tạo Firebase ---
     useEffect(() => {
-        if (auth) {
-            setupAuthAndDatabase(setUserId, setIsAuthReady);
-        } else {
-             // Xử lý khi khởi tạo Firebase thất bại (do thiếu config)
-            setErrorMessage("Lỗi: Firebase chưa được cấu hình. Vui lòng kiểm tra VITE_FIREBASE_CONFIG hoặc các biến toàn cục.");
+        try {
+            const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            // __firebase_config là chuỗi JSON, cần parse
+            const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+            
+            setAppId(currentAppId);
+
+            if (Object.keys(firebaseConfig).length > 0) {
+                const firebaseApp = initializeApp(firebaseConfig);
+                setAppInstance(firebaseApp);
+                setDb(getFirestore(firebaseApp));
+                setAuth(getAuth(firebaseApp));
+            } else {
+                setErrorMessage("Lỗi: Firebase config bị thiếu.");
+                setIsAuthReady(true);
+                setIsLoading(false);
+            }
+        } catch (error) {
+            console.error("Firebase initialization failed:", error);
+            setErrorMessage("Lỗi khởi tạo Firebase. Vui lòng kiểm tra cấu hình.");
             setIsAuthReady(true);
             setIsLoading(false);
         }
-    }, []);
+    }, []); // Chỉ chạy một lần
 
-    // 2. Lấy dữ liệu công khai (Sau khi xác thực xong)
+    // --- EFFECT 2: Xác thực Người dùng ---
     useEffect(() => {
-        if (!isAuthReady || !userId || !db) return;
+        if (!auth) return;
+
+        const setupAuth = async () => {
+            try {
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                console.error("Firebase Auth failed:", e);
+                setErrorMessage("Xác thực Firebase thất bại.");
+            }
+
+            // Thiết lập listener cho trạng thái xác thực
+            const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    setUserId(user.uid);
+                } else {
+                    // Nếu không có token, sử dụng ID ngẫu nhiên cho người dùng ẩn danh
+                    setUserId(auth.currentUser?.uid || crypto.randomUUID());
+                }
+                setIsAuthReady(true);
+            });
+            return unsubscribeAuth;
+        };
+
+        setupAuth();
+    }, [auth]); // Chạy khi Auth instance sẵn sàng
+
+    // --- EFFECT 3: Lấy dữ liệu công khai (Sau khi xác thực xong) ---
+    useEffect(() => {
+        // Chỉ chạy khi đã xác thực xong và có các instance cần thiết
+        if (!isAuthReady || !userId || !db || !appId) return; 
 
         // Path công khai (Public data path)
         const publicCollectionPath = `/artifacts/${appId}/public/data/shared_messages`;
@@ -92,9 +96,11 @@ const App: React.FC = () => {
 
         setIsLoading(true);
 
-        const unsubscribe = onSnapshot(docRef, 
+        // Thiết lập lắng nghe thay đổi thời gian thực
+        const unsubscribeSnapshot = onSnapshot(docRef, 
             (docSnapshot) => {
                 if (docSnapshot.exists()) {
+                    // Ép kiểu để đảm bảo kiểu dữ liệu phù hợp
                     setSharedData(docSnapshot.data() as { message: string });
                 } else {
                     // Nếu tài liệu không tồn tại, tạo tài liệu mặc định
@@ -112,12 +118,12 @@ const App: React.FC = () => {
         );
 
         // Cleanup listener
-        return () => unsubscribe();
-    }, [isAuthReady, userId]); // Dependency on isAuthReady and userId
+        return () => unsubscribeSnapshot();
+    }, [isAuthReady, userId, db, appId]); // Dependency on auth status, user ID, db instance, and appId
 
-    // Chức năng cập nhật dữ liệu
-    const updateMessage = async (newMessage: string) => {
-        if (!db || !userId) return;
+    // Chức năng cập nhật dữ liệu 
+    const updateMessage = useCallback(async (newMessage: string) => {
+        if (!db || !userId || !appId) return;
 
         const publicCollectionPath = `/artifacts/${appId}/public/data/shared_messages`;
         const docRef = doc(db, publicCollectionPath, "welcome_message");
@@ -128,11 +134,11 @@ const App: React.FC = () => {
             setErrorMessage("Không thể cập nhật tin nhắn. Vui lòng kiểm tra quyền ghi Firestore.");
             console.error("Update error:", error);
         }
-    };
+    }, [db, userId, appId]);
 
     const handleUpdateClick = () => {
         const timestamp = new Date().toLocaleTimeString('vi-VN');
-        updateMessage(`Tin nhắn được cập nhật bởi ${userId} lúc ${timestamp}`);
+        updateMessage(`Tin nhắn được cập nhật bởi ${userId || 'Ẩn danh'} lúc ${timestamp}`);
     };
 
     // Hiển thị UI
@@ -150,6 +156,9 @@ const App: React.FC = () => {
                 <section className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                     <h2 className="text-xl font-semibold text-indigo-600 mb-2">Thông tin hệ thống</h2>
                     <p className="text-sm text-gray-700">
+                        **App ID:** <span className="font-mono text-xs break-all bg-yellow-100 p-1 rounded">{appId}</span>
+                    </p>
+                    <p className="text-sm text-gray-700 mt-1">
                         **User ID:** <span className="font-mono text-xs break-all bg-yellow-100 p-1 rounded">{userId || 'Đang xác thực...'}</span>
                     </p>
                     <p className="text-sm text-gray-700 mt-1">
@@ -177,9 +186,9 @@ const App: React.FC = () => {
                 <div className="flex justify-center">
                     <button
                         onClick={handleUpdateClick}
-                        disabled={!isAuthReady || isLoading}
+                        disabled={!isAuthReady || isLoading || !db}
                         className={`px-6 py-3 rounded-full font-semibold text-white transition duration-200 shadow-md ${
-                            isAuthReady && !isLoading 
+                            isAuthReady && !isLoading && db
                                 ? 'bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-300' 
                                 : 'bg-gray-400 cursor-not-allowed'
                         }`}
