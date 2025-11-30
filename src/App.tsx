@@ -3,7 +3,7 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, Firestore } from 'firebase/firestore';
 
-// TẤT CẢ các khai báo 'declare const' ĐÃ BỊ XÓA khỏi đây.
+// TẤT CẢ các khai báo 'declare const' ĐÃ BỊ XÓA khỏi file này để tránh xung đột với vite-env.d.ts.
 
 // Component chính
 const App: React.FC = () => {
