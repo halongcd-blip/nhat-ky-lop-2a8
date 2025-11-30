@@ -3,30 +3,29 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, Firestore } from 'firebase/firestore';
 
-// KHÔNG CẦN KHAI BÁO 'declare const' Ở ĐÂY NỮA. 
-// Các biến toàn cục sẽ được nhận diện qua file 'vite-env.d.ts'
+// Global variables will be recognized from vite-env.d.ts.
+// The repeated 'declare const' lines were removed from here to fix build errors.
 
-// Component chính
 const App: React.FC = () => {
-    // State để lưu trữ các instance Firebase đã khởi tạo
+    // State to store initialized Firebase instances
     const [appInstance, setAppInstance] = useState<FirebaseApp | null>(null);
     const [db, setDb] = useState<Firestore | null>(null);
     const [auth, setAuth] = useState<Auth | null>(null);
     const [appId, setAppId] = useState<string>('default-app-id');
 
-    // State cho thông tin người dùng và dữ liệu
+    // State for user info and data
     const [userId, setUserId] = useState<string | null>(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [sharedData, setSharedData] = useState<{ message: string }>({ message: 'Đang tải dữ liệu...' });
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
 
-    // --- EFFECT 1: Khởi tạo Firebase ---
+    // --- EFFECT 1: Initialize Firebase ---
     useEffect(() => {
         try {
-            // Đọc các biến toàn cục một cách an toàn
-            // TypeScript sẽ nhận dạng __app_id và __firebase_config từ vite-env.d.ts
+            // Read global variables safely
             const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            // __firebase_config is a JSON string, must be parsed
             const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
             
             setAppId(currentAppId);
@@ -47,15 +46,15 @@ const App: React.FC = () => {
             setIsAuthReady(true);
             setIsLoading(false);
         }
-    }, []); // Chỉ chạy một lần
+    }, []); // Runs once
 
-    // --- EFFECT 2: Xác thực Người dùng ---
+    // --- EFFECT 2: User Authentication ---
     useEffect(() => {
         if (!auth) return;
 
         const setupAuth = async () => {
             try {
-                // Đọc biến toàn cục một cách an toàn
+                // Read global token safely
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 
                 if (initialAuthToken) {
@@ -68,12 +67,12 @@ const App: React.FC = () => {
                 setErrorMessage("Xác thực Firebase thất bại.");
             }
 
-            // Thiết lập listener cho trạng thái xác thực
+            // Set up auth state listener
             const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
                 if (user) {
                     setUserId(user.uid);
                 } else {
-                    // Nếu không có token, sử dụng ID ngẫu nhiên cho người dùng ẩn danh
+                    // Use a random ID for anonymous users if no UID exists
                     setUserId(auth.currentUser?.uid || crypto.randomUUID());
                 }
                 setIsAuthReady(true);
@@ -82,28 +81,26 @@ const App: React.FC = () => {
         };
 
         setupAuth();
-    }, [auth]); // Chạy khi Auth instance sẵn sàng
+    }, [auth]); // Runs when Auth instance is ready
 
-    // --- EFFECT 3: Lấy dữ liệu công khai (Sau khi xác thực xong) ---
+    // --- EFFECT 3: Fetch Public Data (After authentication) ---
     useEffect(() => {
-        // Chỉ chạy khi đã xác thực xong và có các instance cần thiết
+        // Guard clause: run only after auth is ready and instances are available
         if (!isAuthReady || !userId || !db || !appId) return; 
 
-        // Path công khai (Public data path)
+        // Public data path construction
         const publicCollectionPath = `/artifacts/${appId}/public/data/shared_messages`;
         const docRef = doc(db, publicCollectionPath, "welcome_message");
 
         setIsLoading(true);
 
-        // Thiết lập lắng nghe thay đổi thời gian thực
+        // Set up real-time listener
         const unsubscribeSnapshot = onSnapshot(docRef, 
             (docSnapshot) => {
                 if (docSnapshot.exists()) {
-                    // Ép kiểu để đảm bảo kiểu dữ liệu phù hợp
                     setSharedData(docSnapshot.data() as { message: string });
                 } else {
-                    // Nếu tài liệu không tồn tại, tạo tài liệu mặc định
-                    // Sử dụng setDoc với merge: true để tạo nếu chưa có
+                    // If the document does not exist, create a default one
                     setDoc(docRef, { message: "Chào mừng đến với Nhật Ký Lớp 2A8!" }, { merge: true })
                         .then(() => setSharedData({ message: "Chào mừng đến với Nhật Ký Lớp 2A8!" }))
                         .catch(err => console.error("Error creating default doc:", err));
@@ -119,9 +116,9 @@ const App: React.FC = () => {
 
         // Cleanup listener
         return () => unsubscribeSnapshot();
-    }, [isAuthReady, userId, db, appId]); // Dependency on auth status, user ID, db instance, and appId
+    }, [isAuthReady, userId, db, appId]); // Dependencies
 
-    // Chức năng cập nhật dữ liệu 
+    // Function to update data
     const updateMessage = useCallback(async (newMessage: string) => {
         if (!db || !userId || !appId) return;
 
@@ -141,7 +138,7 @@ const App: React.FC = () => {
         updateMessage(`Tin nhắn được cập nhật bởi ${userId || 'Ẩn danh'} lúc ${timestamp}`);
     };
 
-    // Hiển thị UI
+    // UI Render
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4 font-sans">
             <script src="https://cdn.tailwindcss.com"></script>
