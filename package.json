@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Simple HTML/JS application for Firebase testing.",
   "scripts": {
-    "start": "echo 'This is a static HTML app, no build step needed.'",
-    "build": "echo 'Build skipped successfully'"
+    "start": "echo 'Starting static HTML server.'",
+    "build": "echo 'Build step bypassed for static HTML.' && exit 0"
   },
   "keywords": [
     "html",
