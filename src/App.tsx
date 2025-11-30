@@ -3,8 +3,7 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, Auth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot, setDoc, Firestore } from 'firebase/firestore';
 
-// Đã loại bỏ tất cả các dòng 'declare const' khỏi đây. 
-// Khai báo type đã được xử lý duy nhất trong file 'vite-env.d.ts'.
+// TẤT CẢ các khai báo 'declare const' ĐÃ BỊ XÓA khỏi đây.
 
 // Component chính
 const App: React.FC = () => {
@@ -24,7 +23,7 @@ const App: React.FC = () => {
     // --- EFFECT 1: Khởi tạo Firebase ---
     useEffect(() => {
         try {
-            // Đọc các biến toàn cục một cách an toàn
+            // Đọc các biến toàn cục một cách an toàn (TypeScript nhận dạng từ vite-env.d.ts)
             const currentAppId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             // __firebase_config là chuỗi JSON, phải được parse
             const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
